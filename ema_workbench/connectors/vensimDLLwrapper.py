@@ -1,4 +1,4 @@
-"""
+r"""
 
 this is a first draft for wrapping the vensim dll in a pythonic way
 
@@ -12,6 +12,7 @@ Typically, the dll can be found in ../AppData/Local/Vensim/vendll32.dll
 
 
 """
+
 import ctypes
 import struct
 import sys
@@ -35,6 +36,7 @@ class VensimWarning(EMAWarning):
     """
     base vensim warning
     """
+
     pass
 
 
@@ -42,6 +44,7 @@ class VensimError(EMAError):
     """
     base Vensim error
     """
+
     pass
 
 
@@ -49,44 +52,41 @@ try:
     vensim_single = ctypes.windll.vendll32
 except AttributeError:
     vensim_single = None
-except WindowsError:
+except OSError:
     vensim_single = None
 
 try:
-    vensim_double = ctypes.windll.LoadLibrary(
-        'C:\Windows\SysWOW64\VdpDLL32.dll')
+    vensim_double = ctypes.windll.LoadLibrary(r"C:\Windows\SysWOW64\VdpDLL32.dll")
 except AttributeError:
     vensim_double = None
-except WindowsError:
+except OSError:
     vensim_double = None
 
 try:
     vensim_64 = ctypes.windll.vendll64
 except AttributeError:
     vensim_64 = None
-except WindowsError:
+except OSError:
     vensim_64 = None
 
 if struct.calcsize("P") * 8 == 64:
     if vensim_64:
         vensim = vensim_64
-        _logger.info('using 64 bit vensim')
+        _logger.info("using 64 bit vensim")
 
     else:
         raise ImportError("vensim dll not found")
     # 64 bit python
 else:
-
     if vensim_single and vensim_double:
         vensim = vensim_single
-        _logger.info(
-            "both single and double precision vensim available, using single")
+        _logger.info("both single and double precision vensim available, using single")
     elif vensim_single:
         vensim = vensim_single
-        _logger.info('using single precision vensim')
+        _logger.info("using single precision vensim")
     elif vensim_double:
         vensim = vensim_double
-        _logger.info('using double precision vensim')
+        _logger.info("using double precision vensim")
 
 del sys, struct
 
@@ -117,7 +117,7 @@ def check_status():
 def command(command):
     """execute a command, for details see chapter 5 of the vensim DSS manual"""
 
-    return_val = vensim.vensim_command(command.encode('utf-8'))
+    return_val = vensim.vensim_command(command.encode("utf-8"))
     if return_val == 0:
         raise VensimWarning("command failed " + command)
     return return_val
@@ -174,33 +174,20 @@ def get_data(filename, variable_name, tname="Time"):
     tval = (ctypes.c_float * 1)()
     maxn = ctypes.c_int(0)
 
-    filename = filename.encode('utf-8')
-    varname = variable_name.encode('utf-8')
-    tname = tname.encode('utf-8')
+    filename = filename.encode("utf-8")
+    varname = variable_name.encode("utf-8")
+    tname = tname.encode("utf-8")
 
-    return_val = vensim.vensim_get_data(filename,
-                                        varname,
-                                        tname,
-                                        vval,
-                                        tval,
-                                        maxn)
+    return_val = vensim.vensim_get_data(filename, varname, tname, vval, tval, maxn)
 
     if return_val == 0:
-        raise VensimWarning(
-            "variable " +
-            variable_name +
-            " not found in dataset")
+        raise VensimWarning(f"variable {variable_name} not found in dataset")
 
     vval = (ctypes.c_float * int(return_val))()
     tval = (ctypes.c_float * int(return_val))()
     maxn = ctypes.c_int(int(return_val))
 
-    return_val = vensim.vensim_get_data(filename,
-                                        varname,
-                                        tname,
-                                        vval,
-                                        tval,
-                                        maxn)
+    return_val = vensim.vensim_get_data(filename, varname, tname, vval, tval, maxn)
 
     vval = np.ctypeslib.as_array(vval)
     tval = np.ctypeslib.as_array(tval)
@@ -251,8 +238,8 @@ def get_info(infowanted):
 
     result = repr(buf.raw)
     result = result.strip()
-    result = result.rstrip("'")
-    result = result.lstrip("'")
+    result = result.rstrip(b"'")
+    result = result.lstrip(b"'")
     result = result.split(r"\x00")
     result = result[0:-2]
     return result
@@ -290,8 +277,7 @@ def get_val(name):
 
     """
     value = ctypes.c_float(0)
-    return_val = vensim.vensim_get_val(
-        name.encode('utf-8'), ctypes.byref(value))
+    return_val = vensim.vensim_get_val(name.encode("utf-8"), ctypes.byref(value))
     if return_val == 0:
         raise VensimWarning("variable not found")
 
@@ -333,33 +319,29 @@ def get_varattrib(varname, attribute):
     ====== =============
 
     """
-    buf = ctypes.create_string_buffer("", 10)
+    buf = ctypes.create_string_buffer(b"", 10)
     maxBuf = ctypes.c_int(10)
 
-    bufferlength = vensim.vensim_get_varattrib(varname.encode('utf-8'),
-                                               attribute,
-                                               buf,
-                                               maxBuf)
+    bufferlength = vensim.vensim_get_varattrib(varname.encode("utf-8"), attribute, buf, maxBuf)
     if bufferlength == -1:
-        raise VensimWarning("variable not found")
+        raise VensimWarning(f"variable {varname} not found")
 
-    buf = ctypes.create_string_buffer("", int(bufferlength))
+    buf = ctypes.create_string_buffer(b"", int(bufferlength))
     maxBuf = ctypes.c_int(int(bufferlength))
-    vensim.vensim_get_varattrib(
-        varname.encode('utf-8'), attribute, buf, maxBuf)
+    vensim.vensim_get_varattrib(varname.encode("utf-8"), attribute, buf, maxBuf)
 
     result = repr(buf.raw)
     result = result.strip()
-    result = result.rstrip("'")
-    result = result.lstrip("'")
+    result = result.rstrip(b"'")
+    result = result.lstrip(b"'")
     result = result.split(r"\x00")
     result = [varname for varname in result if len(varname) != 0]
 
     return result
 
 
-def get_varnames(filter='*', vartype=0):  # @ReservedAssignment
-    """
+def get_varnames(filter=b"*", vartype=0):  # @ReservedAssignment
+    r"""
     This function returns variable names in the model a filter can be specified
     in the same way as Vensim variable Selection filter  (use * for all),
     vartype is an integer that specifies the types of variables you want to
@@ -402,18 +384,18 @@ def get_varnames(filter='*', vartype=0):  # @ReservedAssignment
 
     filter = ctypes.c_char_p(filter)  # @ReservedAssignment
     vartype = ctypes.c_int(vartype)
-    buf = ctypes.create_string_buffer("", 512)
+    buf = ctypes.create_string_buffer(b"", 512)
     maxBuf = ctypes.c_int(512)
 
     a = vensim.vensim_get_varnames(filter, vartype, buf, maxBuf)
-    buf = ctypes.create_string_buffer("", int(a))
+    buf = ctypes.create_string_buffer(b"", int(a))
     maxBuf = ctypes.c_int(int(a))
     vensim.vensim_get_varnames(filter, vartype, buf, maxBuf)
 
     varnames = repr(buf.raw)
     varnames = varnames.strip()
-    varnames = varnames.rstrip("'")
-    varnames = varnames.lstrip("'")
+    varnames = varnames.rstrip(b"'")
+    varnames = varnames.lstrip(b"'")
     varnames = varnames.split(r"\x00")
     varnames = [varname for varname in varnames if len(varname) != 0]
 
@@ -542,6 +524,6 @@ def use_double_precision():
 
     global vensim
     try:
-        vensim = ctypes.windll.LoadLibrary(r'C:\Windows\SysWOW64\VdpDLL32.dll')
-    except WindowsError:
+        vensim = ctypes.windll.LoadLibrary(r"C:\Windows\SysWOW64\VdpDLL32.dll")
+    except OSError:
         raise EMAError("double precision vensim dll not found")

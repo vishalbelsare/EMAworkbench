@@ -2,9 +2,10 @@
 Python model "Sales_Agent_Motivation_Dynamics.py"
 Translated using PySD version 1.3.0
 """
+
 from os import path
 
-from pysd.py_backend.functions import if_then_else, Integ, lookup
+from pysd.py_backend.functions import lookup, Integ, if_then_else
 from pysd import cache
 
 _subscript_dict = {}
@@ -270,17 +271,7 @@ def impact_of_motivation_on_effort(x):
     return lookup(
         x,
         [0, 0.285132, 0.448065, 0.570265, 0.733198, 0.95723, 1.4664, 3.19756, 4.03259],
-        [
-            0,
-            0.0616114,
-            0.232228,
-            0.492891,
-            0.772512,
-            0.862559,
-            0.914692,
-            0.952607,
-            0.957346,
-        ],
+        [0, 0.0616114, 0.232228, 0.492891, 0.772512, 0.862559, 0.914692, 0.952607, 0.957346],
     )
 
 
@@ -297,7 +288,7 @@ def income():
     Technically in units of months of expenses earned per month
     """
     return months_of_expenses_per_sale() * sales() + if_then_else(
-        time() < startup_subsidy_length(), lambda: startup_subsidy(), lambda: 0
+        time() < startup_subsidy_length(), startup_subsidy, lambda: 0
     )
 
 
@@ -481,13 +472,13 @@ def time_step():
     return 0.0625
 
 
-_integ_total_cumulative_income = Integ(lambda: accumulating_income(), lambda: 0)
+_integ_total_cumulative_income = Integ(accumulating_income, lambda: 0)
 
 
-_integ_total_cumulative_sales = Integ(lambda: accumulating_sales(), lambda: 0)
+_integ_total_cumulative_sales = Integ(accumulating_sales, lambda: 0)
 
 
-_integ_tenure = Integ(lambda: accumulating_tenure(), lambda: 0)
+_integ_tenure = Integ(accumulating_tenure, lambda: 0)
 
 
-_integ_motivation = Integ(lambda: motivation_adjustment(), lambda: 1)
+_integ_motivation = Integ(motivation_adjustment, lambda: 1)

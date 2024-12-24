@@ -3,6 +3,7 @@ A scenario discovery oriented implementation of CART. It essentially is
 a wrapper around scikit-learn's version of CART.
 
 """
+
 import io
 import math
 from io import StringIO
@@ -22,8 +23,7 @@ from ..util import get_module_logger
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
 
-__all__ = ['setup_cart',
-           'CART']
+__all__ = ["setup_cart", "CART"]
 _logger = get_module_logger(__name__)
 
 
@@ -61,7 +61,7 @@ def setup_cart(results, classify, incl_unc=None, mass_min=0.05):
         y = classify(outcomes)
         mode = sdutil.RuleInductionType.BINARY
     else:
-        raise TypeError("unknown type for classify")
+        raise TypeError(f"Unknown type for classify: {type(classify)}")
 
     return CART(x, y, mass_min, mode=mode)
 
@@ -105,13 +105,10 @@ class CART(sdutil.OutputFormatterMixin):
 
     """
 
-    sep = '!?!'
+    sep = "!?!"
 
-    def __init__(self, x, y, mass_min=0.05,
-                 mode=sdutil.RuleInductionType.BINARY):
-        """ init
-
-        """
+    def __init__(self, x, y, mass_min=0.05, mode=sdutil.RuleInductionType.BINARY):
+        """init"""
 
         try:
             x = x.drop(["scenario"], axis=1)
@@ -123,13 +120,13 @@ class CART(sdutil.OutputFormatterMixin):
         self.mass_min = mass_min
         self.mode = mode
 
-        # we need to transform the structured array to a ndarray
+        # we need to transform the DataFrame into a ndarray
         # we use dummy variables for each category in case of categorical
         # variables. Integers are treated as floats
         dummies = pd.get_dummies(self.x, prefix_sep=self.sep)
 
         self.dummiesmap = {}
-        for column, values in x.select_dtypes(exclude=np.number).iteritems():
+        for column, values in x.select_dtypes(exclude=np.number).items():
             mapping = {str(entry): entry for entry in values.unique()}
             self.dummiesmap[column] = mapping
 
@@ -140,6 +137,14 @@ class CART(sdutil.OutputFormatterMixin):
 
     @property
     def boxes(self):
+        """
+
+        Returns
+        -------
+        list with boxlims for each terminal leaf
+
+        """
+
         if self._boxes:
             return self._boxes
 
@@ -163,13 +168,12 @@ class CART(sdutil.OutputFormatterMixin):
 
             if child in left:
                 parent = np.where(left == child)[0].item()
-                split = 'l'
+                split = "l"
             else:
                 parent = np.where(right == child)[0].item()
-                split = 'r'
+                split = "r"
 
-            lineage.append((parent, split, threshold[parent],
-                            features[parent]))
+            lineage.append((parent, split, threshold[parent], features[parent]))
 
             if parent == 0:
                 lineage.reverse()
@@ -187,14 +191,14 @@ class CART(sdutil.OutputFormatterMixin):
                 value = node[2]
                 unc = node[3]
 
-                if direction == 'l':
+                if direction == "l":
                     if unc in box_init.columns:
                         box.loc[1, unc] = value
                     else:
                         unc, cat = unc.split(self.sep)
                         cats = box.loc[0, unc]
                         # TODO:: cat is a str needs casting?
-                        # what abouta lookup table mapping
+                        # what about a lookup table mapping
                         # each str cat to the associate actual cat
                         # object
                         # can be created when making the dummy variables
@@ -213,6 +217,14 @@ class CART(sdutil.OutputFormatterMixin):
 
     @property
     def stats(self):
+        """
+
+        Returns
+        -------
+        list with scenario discovery statistics for each terminal leaf
+
+        """
+
         if self._stats:
             return self._stats
 
@@ -232,11 +244,12 @@ class CART(sdutil.OutputFormatterMixin):
         y_in_box = self.y[indices]
         box_coi = np.sum(y_in_box)
 
-        boxstats = {'coverage': box_coi / np.sum(self.y),
-                    'density': box_coi / y_in_box.shape[0],
-                    'res dim': sdutil._determine_nr_restricted_dims(box,
-                                                                    box_init),
-                    'mass': y_in_box.shape[0] / self.y.shape[0]}
+        boxstats = {
+            "coverage": box_coi / np.sum(self.y),
+            "density": box_coi / y_in_box.shape[0],
+            "res dim": sdutil._determine_nr_restricted_dims(box, box_init),
+            "mass": y_in_box.shape[0] / self.y.shape[0],
+        }
         return boxstats
 
     def _regression_stats(self, box, box_init):
@@ -244,10 +257,11 @@ class CART(sdutil.OutputFormatterMixin):
 
         y_in_box = self.y[indices]
 
-        boxstats = {'mean': np.mean(y_in_box),
-                    'mass': y_in_box.shape[0] / self.y.shape[0],
-                    'res dim': sdutil._determine_nr_restricted_dims(box,
-                                                                    box_init)}
+        boxstats = {
+            "mean": np.mean(y_in_box),
+            "mass": y_in_box.shape[0] / self.y.shape[0],
+            "res dim": sdutil._determine_nr_restricted_dims(box, box_init),
+        }
         return boxstats
 
     def _classification_stats(self, box, box_init):
@@ -264,17 +278,20 @@ class CART(sdutil.OutputFormatterMixin):
             total_gini += (count / y_in_box.shape[0]) ** 2
         gini = 1 - total_gini
 
-        boxstats = {'gini': gini,
-                    'mass': y_in_box.shape[0] / self.y.shape[0],
-                    'box_composition': counts,
-                    'res dim': sdutil._determine_nr_restricted_dims(box,
-                                                                    box_init)}
+        boxstats = {
+            "gini": gini,
+            "mass": y_in_box.shape[0] / self.y.shape[0],
+            "box_composition": counts,
+            "res dim": sdutil._determine_nr_restricted_dims(box, box_init),
+        }
 
         return boxstats
 
-    _boxstat_methods = {sdutil.RuleInductionType.BINARY: _binary_stats,
-                        sdutil.RuleInductionType.REGRESSION: _regression_stats,
-                        sdutil.RuleInductionType.CLASSIFICATION: _classification_stats}
+    _boxstat_methods = {
+        sdutil.RuleInductionType.BINARY: _binary_stats,
+        sdutil.RuleInductionType.REGRESSION: _regression_stats,
+        sdutil.RuleInductionType.CLASSIFICATION: _classification_stats,
+    }
 
     def build_tree(self):
         """train CART on the data"""
@@ -283,12 +300,13 @@ class CART(sdutil.OutputFormatterMixin):
         if self.mode == sdutil.RuleInductionType.REGRESSION:
             self.clf = tree.DecisionTreeRegressor(min_samples_leaf=min_samples)
         else:
-            self.clf = tree.DecisionTreeClassifier(
-                min_samples_leaf=min_samples)
+            self.clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples)
         self.clf.fit(self._x, self.y)
 
-    def show_tree(self, mplfig=True, format='png'):
-        """return a png of the tree
+    def show_tree(self, mplfig=True, format="png"):
+        """return a png (defaults) or svg of the tree
+
+        On Windows, graphviz needs to be installed with conda.
 
         Parameters
         ----------
@@ -300,81 +318,34 @@ class CART(sdutil.OutputFormatterMixin):
 
         """
         assert self.clf
-        try:
-            import pydotplus as pydot
-        except ImportError:
-            import pydot  # dirty hack for read the docs
+        import pydot  # dirty hack for read the docs
 
         dot_data = StringIO()
-        tree.export_graphviz(self.clf, out_file=dot_data,
-                             feature_names=self.feature_names)
+        tree.export_graphviz(self.clf, out_file=dot_data, feature_names=self.feature_names)
         dot_data = dot_data.getvalue()  # .encode('ascii') # @UndefinedVariable
         graphs = pydot.graph_from_dot_data(dot_data)
 
-        # FIXME:: pydot now always returns a list, usted to be either a
+        # FIXME:: pydot now always returns a list, used to be either a
         # singleton or a list. This is a stopgap which might be sufficient
         # but just in case, we raise an error if assumption of len==1 does
         # not hold
         if len(graphs) > 1:
-            raise EMAError("trying to visualize more than one tree")
+            raise EMAError(
+                f"Expected a single tree for visualization, but found {len(graphs)} trees."
+            )
 
         graph = graphs[0]
 
-        if format == 'png':
+        if format == "png":
             img = graph.create_png()
             if mplfig:
                 fig, ax = plt.subplots()
                 ax.imshow(mpimg.imread(io.BytesIO(img)))
-                ax.axis('off')
+                ax.axis("off")
                 return fig
-        elif format == 'svg':
+        elif format == "svg":
             img = graph.create_svg()
         else:
-            raise TypeError('''format must be in {'png', 'svg'}''')
+            raise TypeError(f"format must be 'png' or 'svg' (instead of {format}).")
 
         return img
-
-# if __name__ == '__main__':
-#     from test import test_utilities
-#     import matplotlib.pyplot as plt
-#
-#     ema_logging.log_to_stderr(ema_logging.INFO)
-#
-#     def scarcity_classify(outcomes):
-#         outcome = outcomes['relative market price']
-#         change = np.abs(outcome[:, 1::]-outcome[:, 0:-1])
-#
-#         neg_change = np.min(change, axis=1)
-#         pos_change = np.max(change, axis=1)
-#
-#         logical = (neg_change > -0.6) & (pos_change > 0.6)
-#
-#         classes = np.zeros(outcome.shape[0])
-#         classes[logical] = 1
-#
-#         return classes
-#
-#     results = test_utilities.load_scarcity_data()
-#
-#     cart = setup_cart(results, scarcity_classify)
-#     cart.build_tree()
-#
-#     print(cart.boxes_to_dataframe())
-#     print(cart.stats_to_dataframe())
-#     cart.display_boxes(together=True)
-#
-#     img = cart.show_tree()
-#
-#     import matplotlib.pyplot as plt
-#     import matplotlib.image as mpimg
-#
-#     # treat the dot output string as an image file
-#     sio = StringIO()
-#     sio.write(img)
-#     sio.seek(0)
-#     img = mpimg.imread(sio)
-#
-#     # plot the image
-#     imgplot = plt.imshow(img, aspect='equal')
-#
-#     plt.show()

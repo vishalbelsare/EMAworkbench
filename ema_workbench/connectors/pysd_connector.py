@@ -1,6 +1,7 @@
 """
 pysd connector
 """
+
 import os
 
 import pysd
@@ -9,11 +10,11 @@ from ema_workbench.em_framework.model import SingleReplication
 from ema_workbench.util.ema_logging import method_logger
 from ..em_framework.model import AbstractModel
 
-__all__ = ['PysdModel']
+__all__ = ["PysdModel"]
 
 
 class BasePysdModel(AbstractModel):
-    """ Pysd model wrapper
+    """Pysd model wrapper
 
     Parameters
     ----------
@@ -35,25 +36,25 @@ class BasePysdModel(AbstractModel):
 
     @mdl_file.setter
     def mdl_file(self, mdl_file):
-        if not mdl_file.endswith('.mdl'):
-            raise ValueError('model file needs to be a vensim .mdl file')
+        if not mdl_file.endswith(".mdl"):
+            raise ValueError("model file needs to be a vensim .mdl file")
         if not os.path.isfile(mdl_file):
-            raise ValueError('mdl_file not found')
+            raise ValueError("mdl_file not found")
+
+        mdl_file = os.path.abspath(mdl_file)
 
         # Todo: replace when pysd adds an attribute for the .py filename
-        self.py_model_name = mdl_file.replace('.mdl', '.py')
+        self.py_model_name = mdl_file.replace(".mdl", ".py")
         self._mdl_file = mdl_file
 
-    def __init__(self, name=None, mdl_file=None):
+    def __init__(self, name, mdl_file=None):
+        super().__init__(name)
         self.mdl_file = mdl_file
-        if name is None:
-            name = pysd.utils.make_python_identifier(mdl_file)[0]
-            name = name.replace('_', '')
-        super(BasePysdModel, self).__init__(name)
+        self.model = None
 
     @method_logger(__name__)
     def model_init(self, policy, **kwargs):
-        AbstractModel.model_init(self, policy, **kwargs)
+        super().model_init(policy)
 
         # TODO:: should be updated only if mdl file has been changed
         # or if not initialized
@@ -61,20 +62,19 @@ class BasePysdModel(AbstractModel):
 
     @method_logger(__name__)
     def run_experiment(self, experiment):
-        res = self.model.run(params=experiment,
-                             return_columns=self.output_variables)
+        res = self.model.run(params=experiment, return_columns=self.output_variables)
 
         # EMA wants output formatted properly
-        output = {col: series.values for col, series in res.iteritems()}
+        output = {col: series.values for col, series in res.items()}
         return output
 
     def reset_model(self):
         """
-        Method for reseting the model to its initial state. The default
+        Method for resetting the model to its initial state. The default
         implementation only sets the outputs to an empty dict.
 
         """
-        super(BasePysdModel, self).reset_model()
+        super().reset_model()
         if self.model is not None:
             self.model.initialize()
 

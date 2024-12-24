@@ -10,22 +10,24 @@ TimeSeries outcomes write data to a .txt file for each tick. This can be used
 in combination with an agent-set or reporter. However, it introduces
 substantial overhead.
 
-
 """
-import os
-import numpy as np
+
+from pynetlogo.core import NetLogoException
+
+from ema_workbench.em_framework.model import Replicator, SingleReplication
+from ema_workbench.em_framework.outcomes import ArrayOutcome
+from ema_workbench.util.ema_logging import get_module_logger
 
 try:
     import jpype
 except ImportError:
     jpype = None
+import os
 
-from pyNetLogo.core import NetLogoException
-import pyNetLogo
+import numpy as np
 
-from ema_workbench.em_framework.model import Replicator, SingleReplication
-from ema_workbench.em_framework.outcomes import TimeSeriesOutcome
-from ema_workbench.util.ema_logging import get_module_logger
+import pynetlogo
+
 from ..em_framework.model import FileModel
 from ..util.ema_logging import method_logger
 
@@ -33,7 +35,7 @@ from ..util.ema_logging import method_logger
 #
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
-__all__ = ['NetLogoModel']
+__all__ = ["NetLogoModel"]
 _logger = get_module_logger(__name__)
 
 
@@ -57,19 +59,24 @@ class BaseNetLogoModel(FileModel):
     @property
     def ts_output_variables(self):
         if self._ts_output_variables is None:
-            timeseries = [o for o in self.outcomes if
-                          isinstance(o, TimeSeriesOutcome)]
+            timeseries = [o for o in self.outcomes if isinstance(o, ArrayOutcome)]
 
-            self._ts_output_variables = [var for o in timeseries for var in
-                                         o.variable_name]
+            self._ts_output_variables = [var for o in timeseries for var in o.variable_name]
 
         return self._ts_output_variables
 
     command_format = "set {0} {1}"
 
-    def __init__(self, name, wd=None, model_file=None, netlogo_home=None,
-                 netlogo_version=None, jvm_home=None, gui=False,
-                 jvmargs=[]):
+    def __init__(
+        self,
+        name,
+        wd=None,
+        model_file=None,
+        netlogo_home=None,
+        jvm_path=None,
+        gui=False,
+        jvm_args=[],
+    ):
         """
         init of class
 
@@ -82,13 +89,11 @@ class BaseNetLogoModel(FileModel):
                alpha-numerical characters.
         netlogo_home : str, optional
                Path to the NetLogo installation directory (required on Linux)
-        netlogo_version : {'6','5'}, optional
-               Used to choose command syntax for link methods (required on Linux)
-        jvm_home : str, optional
+        jvm_path : str, optional
                Java home directory for Jpype
         gui : bool, optional
                If true, displays the NetLogo GUI (not supported on Mac)
-        jvmargs : list, optional
+        jvm_args : list, optional
 
         Raises
         ------
@@ -103,16 +108,14 @@ class BaseNetLogoModel(FileModel):
         separate working directory prior to calling `model_init`.
 
         """
-        super(BaseNetLogoModel, self).__init__(name, wd=wd,
-                                               model_file=model_file)
+        super().__init__(name, wd=wd, model_file=model_file)
 
         self.run_length = None
         self.netlogo_home = netlogo_home
-        self.netlogo_version = netlogo_version
-        self.jvm_home = jvm_home
+        self.jvm_path = jvm_path
         self.gui = gui
         self._ts_output_variables = None
-        self.jvmargs = jvmargs
+        self.jvm_args = jvm_args
 
     @method_logger(__name__)
     def model_init(self, policy):
@@ -126,14 +129,15 @@ class BaseNetLogoModel(FileModel):
 
 
         """
-        super(BaseNetLogoModel, self).model_init(policy)
-        if not hasattr(self, 'netlogo'):
+        super().model_init(policy)
+        if not hasattr(self, "netlogo"):
             _logger.debug("trying to start NetLogo")
-            self.netlogo = pyNetLogo.NetLogoLink(
+            self.netlogo = pynetlogo.NetLogoLink(
                 netlogo_home=self.netlogo_home,
-                netlogo_version=self.netlogo_version,
-                jvm_home=self.jvm_home,
-                gui=self.gui, jvmargs=self.jvmargs)
+                jvm_path=self.jvm_path,
+                gui=self.gui,
+                jvmargs=self.jvm_args,
+            )
             _logger.debug("netlogo started")
         path = os.path.join(self.working_directory, self.model_file)
         self.netlogo.load_model(path)
@@ -161,9 +165,7 @@ class BaseNetLogoModel(FileModel):
             try:
                 self.netlogo.command(self.command_format.format(key, value))
             except jpype.JavaException as e:
-                _logger.warning(
-                    'variable {} throws exception: {}'.format(
-                        key, str(e)))
+                _logger.warning(f"variable {key} throws exception: {str(e)}")
 
         _logger.debug("model parameters set successfully")
 
@@ -177,28 +179,22 @@ class BaseNetLogoModel(FileModel):
         commands = []
         fns = {}
         for variable in self.ts_output_variables:
-            fn = r'{0}{3}{1}{2}'.format(self.working_directory,
-                                        variable,
-                                        ".txt",
-                                        os.sep)
+            fn = r"{0}{3}{1}{2}".format(self.working_directory, variable, ".txt", os.sep)
             fns[variable] = fn
-            fn = '"{}"'.format(fn)
-            fn = fn.replace(os.sep, '/')
+            fn = f'"{fn}"'
+            fn = fn.replace(os.sep, "/")
 
-            if self.netlogo.report('is-agentset? {}'.format(variable)):
+            if self.netlogo.report(f"is-agentset? {variable}"):
                 # if name is name of an agentset, we
                 # assume that we should count the total number of agents
-                nc = r'file-open {0} file-write count {1}'.format(fn,
-                                                                  variable,
-                                                                  )
+                nc = rf"file-open {fn} file-write count {variable}"
             else:
                 # it is not an agentset, so assume that it is
                 # a reporter / global variable
-                nc = r'file-open {0} file-write {1}'.format(fn,
-                                                            variable)
+                nc = rf"file-open {fn} file-write {variable}"
             commands.append(nc)
 
-        c_start = "repeat {} [".format(self.run_length)
+        c_start = f"repeat {self.run_length} ["
         c_close = "go ]"
         c_middle = " ".join(commands)
         command = " ".join((c_start, c_middle, c_close))
@@ -215,13 +211,12 @@ class BaseNetLogoModel(FileModel):
         results = self._handle_outcomes(fns)
 
         # handle non time series outcomes
-        non_ts_vars = set(self.output_variables) - \
-                      set(self.ts_output_variables)
+        non_ts_vars = set(self.output_variables) - set(self.ts_output_variables)
         for variable in set(non_ts_vars):
             try:
                 data = self.netlogo.report(variable)
             except NetLogoException:
-                _logger.exception("{} not a reporter".format(variable))
+                _logger.exception(f"{variable} not a reporter")
             else:
                 results[variable] = data
 
@@ -238,6 +233,7 @@ class BaseNetLogoModel(FileModel):
         """
         return self.output
 
+    @method_logger(__name__)
     def cleanup(self):
         """
         This model is called after finishing all the experiments, but
@@ -254,7 +250,8 @@ class BaseNetLogoModel(FileModel):
         except AttributeError:
             pass
 
-        jpype.shutdownJVM()
+    #         jpype.shutdownJVM()
+    #         self.netlogo = None
 
     def _handle_outcomes(self, fns):
         """helper function for parsing outcomes"""

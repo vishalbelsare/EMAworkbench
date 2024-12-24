@@ -1,17 +1,14 @@
 """
 
 Exceptions and warning used internally by the EMA workbench. In line with
-advice given in `PEP 8 <http://www.python.org/dev/peps/pep-0008/>`_.
+advice given in `PEP 8 <https://www.python.org/dev/peps/pep-0008/>`_.
 """
 
 # Created on 31 mei 2011
 #
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
-__all__ = ['EMAError',
-           'EMAWarning',
-           'CaseError',
-           'EMAParallelError']
+__all__ = ["EMAError", "EMAWarning", "CaseError", "EMAParallelError"]
 
 
 class EMAError(BaseException):
@@ -29,13 +26,14 @@ class EMAError(BaseException):
             return str(self.args)
 
     def __repr__(self):
-        return "%s(*%s)" % (self.__class__.__name__, repr(self.args))
+        return f"{self.__class__.__name__}(*{repr(self.args)})"
 
 
 class EMAWarning(EMAError):
     """
     base EMA warning class
     """
+
     pass
 
 
@@ -54,7 +52,7 @@ class CaseError(EMAError):
         try:
             self.policy = policy.name
         except AttributeError:
-            self.policy = 'None'
+            self.policy = "None"
 
     def __str__(self):
         keys = sorted(self.case.keys())
@@ -65,17 +63,18 @@ class CaseError(EMAError):
             c += key
             c += ":"
             c += str(value)
-            c += ', '
-        c += 'policy:' + self.policy
+            c += ", "
+        c += "policy:" + self.policy
 
-        return self.message + ' case: {' + c + "}"
+        return self.message + " case: {" + c + "}"
 
     def __repr__(self):
-        return "%s case: %s " % (self.message, repr(self.case))
+        return f"{self.message} case: {repr(self.case)} "
 
 
 class EMAParallelError(EMAError):
     """
     parallel EMA error
     """
+
     pass

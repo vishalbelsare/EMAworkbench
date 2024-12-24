@@ -38,6 +38,11 @@ local.properties
 ############
 .idea/*
 
+# virtualenv
+.venv
+venv/
+ENV/
+
 
 #################
 ## Visual Studio
@@ -163,6 +168,7 @@ pip-log.txt
 # Unit test / coverage reports
 .coverage
 .tox
+/htmlcov
 
 #Translations
 *.mo
@@ -170,5 +176,19 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
 # Mac crap
 .DS_Store
+
+# changelog
+./docs/source/getting_started/changelog.md

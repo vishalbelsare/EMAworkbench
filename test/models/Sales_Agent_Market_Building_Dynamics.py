@@ -2,10 +2,11 @@
 Python model "Sales_Agent_Market_Building_Dynamics.py"
 Translated using PySD version 1.3.0
 """
+
 from os import path
 import numpy as np
 
-from pysd.py_backend.functions import if_then_else, Integ
+from pysd.py_backend.functions import Integ, if_then_else
 from pysd import cache
 
 _subscript_dict = {}
@@ -246,9 +247,7 @@ def effort_devoted_to_tier_2_leads():
     """
     return np.minimum(
         effort_remaining_after_servicing_existing_clients(),
-        effort_required_to_make_a_sale()
-        * tier_2_leads()
-        / minimum_time_to_make_a_sale(),
+        effort_required_to_make_a_sale() * tier_2_leads() / minimum_time_to_make_a_sale(),
     )
 
 
@@ -297,9 +296,7 @@ def effort_remaining_after_servicing_tier_2_leads():
         activities are complete?
     """
     return np.maximum(
-        effort_remaining_after_servicing_existing_clients()
-        - effort_devoted_to_tier_2_leads(),
-        0,
+        effort_remaining_after_servicing_existing_clients() - effort_devoted_to_tier_2_leads(), 0
     )
 
 
@@ -318,9 +315,7 @@ def income():
     return (
         tier_1_income()
         + tier_2_income()
-        + if_then_else(
-            time() < startup_subsidy_length(), lambda: startup_subsidy(), lambda: 0
-        )
+        + if_then_else(time() < startup_subsidy_length(), startup_subsidy, lambda: 0)
     )
 
 
@@ -1051,35 +1046,29 @@ def time_step():
     return 0.0625
 
 
-_integ_total_cumulative_sales = Integ(lambda: accumulating_sales(), lambda: 0)
+_integ_total_cumulative_sales = Integ(accumulating_sales, lambda: 0)
 
 
-_integ_tenure = Integ(lambda: accumulating_tenure(), lambda: 0)
+_integ_tenure = Integ(accumulating_tenure, lambda: 0)
 
 
-_integ_total_cumulative_income = Integ(lambda: accumulating_income(), lambda: 0)
+_integ_total_cumulative_income = Integ(accumulating_income, lambda: 0)
 
 
-_integ_months_of_buffer = Integ(lambda: income() - expenses(), lambda: initial_buffer())
+_integ_months_of_buffer = Integ(lambda: income() - expenses(), initial_buffer)
 
 
-_integ_tier_2_clients = Integ(
-    lambda: tier_2_sales() - tier_2_client_turnover(), lambda: 0
-)
+_integ_tier_2_clients = Integ(lambda: tier_2_sales() - tier_2_client_turnover(), lambda: 0)
 
 
 _integ_tier_2_leads = Integ(
-    lambda: tier_2_lead_aquisition() + tier_2_sales() - tier_2_leads_going_stale(),
-    lambda: 0,
+    lambda: tier_2_lead_aquisition() + tier_2_sales() - tier_2_leads_going_stale(), lambda: 0
 )
 
 
 _integ_tier_1_leads = Integ(
-    lambda: tier_1_lead_aquisition() + tier_1_sales() - tier_1_leads_going_stale(),
-    lambda: 100,
+    lambda: tier_1_lead_aquisition() + tier_1_sales() - tier_1_leads_going_stale(), lambda: 100
 )
 
 
-_integ_tier_1_clients = Integ(
-    lambda: tier_1_sales() - tier_1_client_turnover(), lambda: 0
-)
+_integ_tier_1_clients = Integ(lambda: tier_1_sales() - tier_1_client_turnover(), lambda: 0)

@@ -8,6 +8,7 @@ used functions with error checking. For more fine grained control, the
 :mod:`vensimDLLwrapper` can also be used directly.
 
 """
+
 import decimal
 import math
 import os
@@ -16,11 +17,10 @@ import warnings
 import numpy as np
 
 from . import vensimDLLwrapper
-from .vensimDLLwrapper import (command, get_val, VensimError, VensimWarning)
+from .vensimDLLwrapper import command, get_val, VensimError, VensimWarning
 from ..em_framework import TimeSeriesOutcome, FileModel
 from ..em_framework.model import SingleReplication
-from ..em_framework.parameters import (Parameter, RealParameter,
-                                       CategoricalParameter)
+from ..em_framework.parameters import Parameter, RealParameter, CategoricalParameter
 from ..em_framework.util import NamedObjectMap
 from ..util import CaseError, EMAError, EMAWarning, get_module_logger
 from ..util.ema_logging import method_logger
@@ -29,14 +29,16 @@ from ..util.ema_logging import method_logger
 #
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
-__all__ = ['be_quiet',
-           'load_model',
-           'read_cin_file',
-           'set_value',
-           'run_simulation',
-           'get_data',
-           'VensimModel',
-           'LookupUncertainty']
+__all__ = [
+    "be_quiet",
+    "load_model",
+    "read_cin_file",
+    "set_value",
+    "run_simulation",
+    "get_data",
+    "VensimModel",
+    "LookupUncertainty",
+]
 _logger = get_module_logger(__name__)
 
 
@@ -124,7 +126,7 @@ def set_value(variable, value):
         try:
             command("SIMULATE>SETVAL|" + variable + "=" + str(value))
         except VensimWarning:
-            _logger.warning('variable: \'' + variable + '\' not found')
+            _logger.warning("variable: '" + variable + "' not found")
 
 
 def run_simulation(file_name):
@@ -148,15 +150,12 @@ def run_simulation(file_name):
     file_name = str(file_name)
 
     try:
-        _logger.debug(
-            " executing COMMAND: SIMULATE>RUNNAME|" +
-            file_name +
-            "|O")
+        _logger.debug(" executing COMMAND: SIMULATE>RUNNAME|" + file_name + "|O")
         command("SIMULATE>RUNNAME|" + file_name + "|O")
         _logger.debug("MENU>RUN|o")
         command("MENU>RUN|o")
     except VensimWarning as w:
-        _logger.warning((str(w)))
+        _logger.warning(str(w))
         raise VensimError(str(w))
 
 
@@ -171,7 +170,7 @@ def get_data(filename, varname, step=1):
     varname : str
               the name of the variable to retrieve data on
     step : int (optional)
-           steps used in slicing. Defaults to 1, meaning the full recored time
+           steps used in slicing. Defaults to 1, meaning the full recorded time
            series is returned.
 
     Returns
@@ -190,8 +189,10 @@ def get_data(filename, varname, step=1):
 
 
 def VensimModelStructureInterface(name, wd=None, model_file=None):
-    warnings.warn(('VensimModelStructureInterface is deprecated use '
-                   'VensimModel instead'))
+    warnings.warn(
+        "VensimModelStructureInterface is deprecated and will be removed in version 3.0 of the EMAworkbench. Use VensimModel instead.",
+        DeprecationWarning,
+    )
 
     return VensimModel(name, wd=wd, model_file=model_file)
 
@@ -255,18 +256,16 @@ class BaseVensimModel(FileModel):
 
         """
         if vensimDLLwrapper.vensim_64 is not None:
-            if not model_file.endswith('.vpmx') and not model_file.endswith(
-                    '.vpm'):
-                raise ValueError('model file should be a .vpm or .vpmx file')
-            self._resultfile = 'Current.vdfx'
+            if not model_file.endswith(".vpmx") and not model_file.endswith(".vpm"):
+                raise ValueError("model file should be a .vpm or .vpmx file")
+            self._resultfile = "Current.vdfx"
         else:
-            if not model_file.endswith('.vpm'):
-                raise ValueError('model file should be a vpm file')
-            self._resultfile = 'Current.vdf'
+            if not model_file.endswith(".vpm"):
+                raise ValueError("model file should be a vpm file")
+            self._resultfile = "Current.vdf"
 
-        super(BaseVensimModel, self).__init__(
-            name, wd=wd, model_file=model_file)
-        self.outcomes.extend(TimeSeriesOutcome('TIME', variable_name='Time'))
+        super().__init__(name, wd=wd, model_file=model_file)
+        self.outcomes.extend(TimeSeriesOutcome("TIME", variable_name="Time"))
 
         self._lookup_uncertainties = NamedObjectMap(Parameter)
 
@@ -292,7 +291,7 @@ class BaseVensimModel(FileModel):
         policy : dict
                  policy to be run.
         """
-        super(BaseVensimModel, self).model_init(policy)
+        super().model_init(policy)
 
         fn = os.path.join(self.working_directory, self.model_file)
         load_model(fn)  # load the model
@@ -302,10 +301,10 @@ class BaseVensimModel(FileModel):
         be_quiet()  # minimize the screens that are shown
 
         try:
-            initialTime = get_val('INITIAL TIME')
-            finalTime = get_val('FINAL TIME')
-            timeStep = get_val('TIME STEP')
-            savePer = get_val('SAVEPER')
+            initialTime = get_val("INITIAL TIME")
+            finalTime = get_val("FINAL TIME")
+            timeStep = get_val("TIME STEP")
+            savePer = get_val("SAVEPER")
 
             if savePer > 0:
                 timeStep = savePer
@@ -350,8 +349,7 @@ class BaseVensimModel(FileModel):
         for lookup_uncertainty in self._lookup_uncertainties:
             # ask the lookup to transform the retrieved uncertainties to the
             # proper lookup value
-            experiment[lookup_uncertainty.name] = lookup_uncertainty.transform(
-                experiment)
+            experiment[lookup_uncertainty.name] = lookup_uncertainty.transform(experiment)
 
         for key, value in experiment.items():
             set_value(key, value)
@@ -367,19 +365,18 @@ class BaseVensimModel(FileModel):
         def check_data(result):
             error = False
             if result.shape[0] != self.run_length:
-                data = np.empty((self.run_length))
+                data = np.empty(self.run_length)
                 data[:] = np.NAN
-                data[0:result.shape[0]] = result
+                data[0 : result.shape[0]] = result
                 result = data
                 error = True
             return result, error
 
         results = {}
         error = False
-        result_filename = os.path.join(
-            self.working_directory, self.result_file)
+        result_filename = os.path.join(self.working_directory, self.result_file)
         for variable in self.output_variables:
-            _logger.debug("getting data for %s" % variable)
+            _logger.debug(f"getting data for {variable}")
 
             res = get_data(result_filename, variable)
             result, er = check_data(np.asarray(res))
@@ -387,37 +384,25 @@ class BaseVensimModel(FileModel):
 
             results[variable] = result
 
-        _logger.debug('setting results to output')
+        _logger.debug("setting results to output")
         if error:
             raise CaseError("run not completed", experiment)
 
         return results
-
-    def cleanup(self):
-        super(BaseVensimModel, self).cleanup()
-
-    def reset_model(self):
-        """
-        Method for reseting the model to its initial state before runModel
-        was called
-        """
-
-        super(BaseVensimModel, self).reset_model()
 
     def _delete_lookup_uncertainties(self):
         """
         deleting lookup uncertainties from the uncertainty list
         """
         self._lookup_uncertainties = self._lookup_uncertainties[:]
-        self.uncertainties = [x for x in self.uncertainties if x not in
-                              self._lookup_uncertainties]
+        self.uncertainties = [x for x in self.uncertainties if x not in self._lookup_uncertainties]
 
 
 class LookupUncertainty(Parameter):
-    HEARNE1 = 'hearne1'
-    HEARNE2 = 'hearne2'
-    APPROX = 'approximation'
-    CAT = 'categories'
+    HEARNE1 = "hearne1"
+    HEARNE2 = "hearne2"
+    APPROX = "approximation"
+    CAT = "categories"
 
     error_message = "unknown transform_type for lookup uncertainty {}"
     msi = None
@@ -495,47 +480,38 @@ class LookupUncertainty(Parameter):
               not needed in case of CAT
 
         """
-        super(LookupUncertainty, self).__init__(values, name)
+        super().__init__(values, name)
         self.lookup_type = lookup_type
         self.y_min = ymin
         self.y_max = ymax
         self.error_message = self.error_message.format(self.name)
-        self.transform_functions = {self.HEARNE1: self._hearne1,
-                                    self.HEARNE2: self._hearne2,
-                                    self.APPROX: self._approx,
-                                    self.CAT: self._cat}
+        self.transform_functions = {
+            self.HEARNE1: self._hearne1,
+            self.HEARNE2: self._hearne2,
+            self.APPROX: self._approx,
+            self.CAT: self._cat,
+        }
 
         if self.lookup_type == "categories":
-            msi.uncertainties.append(CategoricalParameter("c-" + self.name),
-                                     range(len(values)))
+            msi.uncertainties.append(CategoricalParameter("c-" + self.name), range(len(values)))
             msi._lookup_uncertainties.append(self)
         elif self.lookup_type == "hearne1":
-            msi.uncertainties.append(RealParameter("m-" + self.name,
-                                                   *values[0]))
-            msi.uncertainties.append(RealParameter("p-" + self.name,
-                                                   *values[1]))
-            msi.uncertainties.append(RealParameter("l-" + self.name,
-                                                   *values[2]))
-            msi.uncertainties.append(RealParameter("u-" + self.name,
-                                                   *values[3]))
+            msi.uncertainties.append(RealParameter("m-" + self.name, *values[0]))
+            msi.uncertainties.append(RealParameter("p-" + self.name, *values[1]))
+            msi.uncertainties.append(RealParameter("l-" + self.name, *values[2]))
+            msi.uncertainties.append(RealParameter("u-" + self.name, *values[3]))
             msi._lookup_uncertainties.append(self)
         elif self.lookup_type == "hearne2":
-            msi.uncertainties.append(RealParameter("m1-" + self.name),
-                                     *values[0])
-            msi.uncertainties.append(RealParameter("m2-" + self.name,
-                                                   *values[1]))
-            msi.uncertainties.append(RealParameter("p1-" + self.name,
-                                                   *values[2]))
-            msi.uncertainties.append(RealParameter("p2-" + self.name,
-                                                   *values[3]))
-            msi.uncertainties.append(RealParameter("l-" + self.name,
-                                                   *values[4]))
-            msi.uncertainties.append(RealParameter("u-" + self.name,
-                                                   values[5]))
+            msi.uncertainties.append(RealParameter("m1-" + self.name), *values[0])
+            msi.uncertainties.append(RealParameter("m2-" + self.name, *values[1]))
+            msi.uncertainties.append(RealParameter("p1-" + self.name, *values[2]))
+            msi.uncertainties.append(RealParameter("p2-" + self.name, *values[3]))
+            msi.uncertainties.append(RealParameter("l-" + self.name, *values[4]))
+            msi.uncertainties.append(RealParameter("u-" + self.name, values[5]))
             msi._lookup_uncertainties.append(self)
         elif self.lookup_type == "approximation":
-            for i, entry in enumerate('A,K,B,Q,M'):
-                name = '{}-{}'.format(entry, self.name)
+            for i, entry in enumerate("A,K,B,Q,M"):
+                name = f"{entry}-{self.name}"
                 msi.uncertainties.append(RealParameter(name, *values[i]))
             msi._lookup_uncertainties.append(self)
         else:
@@ -554,22 +530,22 @@ class LookupUncertainty(Parameter):
         """
 
         a = vensimDLLwrapper.get_varattrib(name, 3)[0]
-        elements = a.split('],', 1)
+        elements = a.split("],", 1)
         b = elements[1][0:-1]
 
         list1 = []
         list2 = []
         number = []
         for c in b:
-            if (c != '(') and (c != ')'):
+            if c not in ("(", ")"):
                 list1.append(c)
 
-        list1.append(',')
+        list1.append(",")
         for c in list1:
-            if c != ',':
+            if c != ",":
                 number.append(c)
             else:
-                list2.append(float(''.join(number)))
+                list2.append(float("".join(number)))
                 number[:] = []
         x = []
         y = []
@@ -628,12 +604,12 @@ class LookupUncertainty(Parameter):
         return (self.name, self.values[0], self.values[1])
 
     def _hearne1(self, case):
-        m = case['m-' + self.name]
-        p = case['p-' + self.name]
-        l = case['l-' + self.name]
-        u = case['u-' + self.name]
+        m = case["m-" + self.name]
+        p = case["p-" + self.name]
+        l = case["l-" + self.name]
+        u = case["u-" + self.name]
 
-        for char in ['m-', 'p-', 'l-', 'u-']:
+        for char in ["m-", "p-", "l-", "u-"]:
             case.pop(char + self.name)
 
         df = []
@@ -644,20 +620,18 @@ class LookupUncertainty(Parameter):
                 df.append(l + m - ((m + l - u) * (i - p) / (self.x_min - p)))
         new_lookup = []
         for i in range(len(self.x)):
-            new_lookup.append(
-                (self.x[i],
-                 max(min(df[i] * self.y[i], self.y_max), self.y_min)))
+            new_lookup.append((self.x[i], max(min(df[i] * self.y[i], self.y_max), self.y_min)))
         return new_lookup
 
     def _hearne2(self, case):
-        m1 = case['m1-' + self.name]
-        m2 = case['m2-' + self.name]
-        p1 = case['p1-' + self.name]
-        p2 = case['p2-' + self.name]
-        l = case['l-' + self.name]
-        u = case['u-' + self.name]
+        m1 = case["m1-" + self.name]
+        m2 = case["m2-" + self.name]
+        p1 = case["p1-" + self.name]
+        p2 = case["p2-" + self.name]
+        l = case["l-" + self.name]
+        u = case["u-" + self.name]
 
-        for char in ['m1-', 'm2-', 'p1-', 'p2-', 'l-', 'u-']:
+        for char in ["m1-", "m2-", "p1-", "p2-", "l-", "u-"]:
             case.pop(char + self.name)
 
         df = []  # distortion function
@@ -666,47 +640,118 @@ class LookupUncertainty(Parameter):
                 df.append(l + ((m1 / (p1 - self.x_min)) * i))
             else:
                 if i < p2:
-                    df.append(l + m1 - ((m1 - m2 + l - u) *
-                                        (i - p1) / (p2 - p1)))
+                    df.append(l + m1 - ((m1 - m2 + l - u) * (i - p1) / (p2 - p1)))
                 else:
                     df.append(u + m2 - (m2 * (i - p2) / (self.x_max - p2)))
         new_lookup = []
         for i in range(len(self.x)):
-            new_lookup.append(
-                (self.x[i],
-                 max(min(df[i] * self.y[i], self.y_max), self.y_min)))
+            new_lookup.append((self.x[i], max(min(df[i] * self.y[i], self.y_max), self.y_min)))
         return new_lookup
 
     def _approx(self, case):
-        A = case['A-' + self.name]
-        K = case['K-' + self.name]
-        B = case['B-' + self.name]
-        Q = case['Q-' + self.name]
-        M = case['M-' + self.name]
+        A = case["A-" + self.name]
+        K = case["K-" + self.name]
+        B = case["B-" + self.name]
+        Q = case["Q-" + self.name]
+        M = case["M-" + self.name]
 
-        for char in ['A-', 'K-', 'B-', 'Q-', 'M-']:
+        for char in ["A-", "K-", "B-", "Q-", "M-"]:
             case.pop(char + self.name)
 
         new_lookup = []
         if self.x_max > 10:
             for i in range(int(self.x_min), int(self.x_max + 1)):
-                new_lookup.append((i, max(min(
-                    self._gen_log(i, A, K, B, Q, M),
-                    self.y_max), self.y_min)))
+                new_lookup.append(
+                    (i, max(min(self._gen_log(i, A, K, B, Q, M), self.y_max), self.y_min))
+                )
         else:
-            for i in range(int(self.x_min * 10),
-                           int(self.x_max * 10 + 1),
-                           max(int(self.x_max), 1)):
-                new_lookup.append((i / 10,
-                                   max(min(self._gen_log(i / 10,
-                                                         A, K, B, Q, M),
-                                           self.y_max),
-                                       self.y_min)))
+            for i in range(int(self.x_min * 10), int(self.x_max * 10 + 1), max(int(self.x_max), 1)):
+                new_lookup.append(
+                    (i / 10, max(min(self._gen_log(i / 10, A, K, B, Q, M), self.y_max), self.y_min))
+                )
         return new_lookup
 
     def _cat(self, case):
-        return self.values[case.pop('c-' + self.name)]
+        return self.values[case.pop("c-" + self.name)]
 
 
 class VensimModel(SingleReplication, BaseVensimModel):
     pass
+
+
+def create_model_for_debugging(path_to_existing_model, path_to_new_model, error):
+    """Helper function for creating a vensim mdl file parameterized according
+    to the experiment which created the error
+
+    To be able to debug the Vensim model, a few steps are needed:
+
+    1.  The case that gave a bug, needs to be saved in a text  file. The entire
+        case description should be on a single line.
+    2.  Reform and clean your model ( In the Vensim menu: Model, Reform and
+        Clean). Choose
+
+         * Equation Order: Alphabetical by group (not really necessary)
+         * Equation Format: Terse
+
+    3.  Save your model as text (File, Save as..., Save as Type: Text Format
+        Models
+    4.  Run this script
+    5.  If the print in the end is not set([]), but set([array]), the array
+        gives the values that where not found and changed
+    5.  Run your new model (for example 'new text.mdl')
+    6.  Vensim tells you about your critical mistake
+
+
+    Parameters
+    ----------
+
+    path_to_existing_model : str
+                             path to the original mdl file
+    path_to_new_model : str
+                        path for the new mdl file
+    error : str
+            the case error, only containing the parameterization
+
+    """
+
+    # we assume the case specification was copied from the logger
+    experiment = error.split(",")
+    variables = {}
+
+    # -1 because policy entry needs to be removed
+    for entry in experiment[0:-1]:
+        variable, value = entry.split(":")
+
+        # Delete the spaces and other rubish on the sides of the variable name
+        variable = variable.strip()
+        variable = variable.lstrip("'")
+        variable = variable.rstrip("'")
+        value = value.strip()
+
+        # vensim model is in bytes, so we go from unicode to bytes
+        variables[variable.encode("utf8")] = value.encode("utf8")
+
+    # This generates a new (text-formatted) model
+    with open(path_to_new_model, "wb") as new_model:
+        skip_next_line = False
+
+        for line in open(path_to_existing_model, "rb"):
+            if skip_next_line:
+                skip_next_line = False
+                line = b"\n"
+            elif line.find(b"=") != -1:
+                variable = line.split(b"=")[0]
+                variable = variable.strip()
+
+                try:
+                    value = variables.pop(variable)
+                except KeyError:
+                    pass
+                else:
+                    line = variable + b" = " + value
+                    skip_next_line = True
+
+            new_model.write(line)
+
+    _logger.info("parameters not set:")
+    _logger.info(set(variables.keys()))

@@ -1,8 +1,9 @@
 """
 This module provides time series clustering functionality using
-complex invariant distance
+complex invariant distance. For details see `Steinmann et al (2020) <https://doi.org/10.1016/j.techfore.2020.120052>`_
 
 """
+
 import itertools
 
 import matplotlib.pyplot as plt
@@ -19,9 +20,7 @@ from ..util import get_module_logger
 #
 
 
-__all__ = ['calculate_cid',
-           'plot_dendrogram',
-           'apply_agglomerative_clustering']
+__all__ = ["calculate_cid", "plot_dendrogram", "apply_agglomerative_clustering"]
 
 _logger = get_module_logger(__name__)
 
@@ -70,28 +69,30 @@ def calculate_cid(data, condensed_form=False):
 
 
 def plot_dendrogram(distances):
-    """plot dendrogram for distances
-    """
+    """plot dendrogram for distances"""
 
     if distances.ndim == 2:
         distances = sp.spatial.distance.squareform(distances)
     linked = sp.cluster.hierarchy.linkage(distances)  # @UndefinedVariable
 
     fig = plt.figure()
-    sp.cluster.hierarchy.dendrogram(linked,  # @UndefinedVariable
-                                    orientation='top',
-                                    distance_sort='descending',
-                                    show_leaf_counts=True)
+    sp.cluster.hierarchy.dendrogram(
+        linked,  # @UndefinedVariable
+        orientation="top",
+        distance_sort="descending",
+        show_leaf_counts=True,
+    )
     return fig
 
 
-def apply_agglomerative_clustering(distances, n_clusters, linkage='average'):
+def apply_agglomerative_clustering(distances, n_clusters, metric="precomputed", linkage="average"):
     """apply agglomerative clustering to the distances
 
     Parameters
     ----------
     distances : ndarray
     n_clusters : int
+    metric : str, optional. The distance metric to use. The default is 'precomputed'. For a list of available metrics, see the documentation of scipy.spatial.distance.pdist.
     linkage : {'average', 'complete', 'single'}
 
     Returns
@@ -100,8 +101,6 @@ def apply_agglomerative_clustering(distances, n_clusters, linkage='average'):
 
     """
 
-    c = cluster.AgglomerativeClustering(n_clusters=n_clusters,
-                                        affinity='precomputed',
-                                        linkage=linkage)
+    c = cluster.AgglomerativeClustering(n_clusters=n_clusters, metric=metric, linkage=linkage)
     clusters = c.fit_predict(distances)
     return clusters

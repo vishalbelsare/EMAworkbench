@@ -2,6 +2,7 @@
 Samplers for working with SALib
 
 """
+
 import operator
 import warnings
 
@@ -11,24 +12,25 @@ from .parameters import IntegerParameter
 from .samplers import DefaultDesigns
 
 try:
-    from SALib.sample import saltelli, morris, fast_sampler
+    from SALib.sample import sobol
+    from SALib.sample import morris
+    from SALib.sample import fast_sampler
 except ImportError:
     warnings.warn("SALib samplers not available", ImportWarning)
-    saltelli = morris = fast_sampler = None
+    sobol = morris = fast_sampler = None
 
 # Created on 12 Jan 2017
 #
 # .. codeauthor::jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
-__all__ = ["SobolSampler", "MorrisSampler", "FASTSampler",
-           'get_SALib_problem']
+__all__ = ["SobolSampler", "MorrisSampler", "FASTSampler", "get_SALib_problem"]
 
 
 def get_SALib_problem(uncertainties):
-    """returns a dict with a problem specificatin as required by SALib"""
+    """returns a dict with a problem specification as required by SALib"""
 
     _warning = False
-    uncertainties = sorted(uncertainties, key=operator.attrgetter('name'))
+    uncertainties = sorted(uncertainties, key=operator.attrgetter("name"))
     bounds = []
 
     for u in uncertainties:
@@ -39,14 +41,15 @@ def get_SALib_problem(uncertainties):
 
         bounds.append((lower, upper))
 
-    problem = {'num_vars': len(uncertainties),
-               'names': [unc.name for unc in uncertainties],
-               'bounds': bounds}
+    problem = {
+        "num_vars": len(uncertainties),
+        "names": [unc.name for unc in uncertainties],
+        "bounds": bounds,
+    }
     return problem
 
 
-class SALibSampler(object):
-
+class SALibSampler:
     def generate_samples(self, uncertainties, size):
         """
         The main method of :class: `~sampler.Sampler` and its
@@ -56,9 +59,7 @@ class SALibSampler(object):
         Parameters
         ----------
         uncertainties : collection
-                        a collection of :class:`~uncertainties.ParameterUncertainty`
-                        and :class:`~uncertainties.CategoricalUncertainty`
-                        instances.
+                        a collection of Parameter instances
         size : int
                the number of samples to generate.
 
@@ -105,7 +106,7 @@ class SALibSampler(object):
             the number of experimental designs
 
         """
-        parameters = sorted(parameters, key=operator.attrgetter('name'))
+        parameters = sorted(parameters, key=operator.attrgetter("name"))
         sampled_parameters = self.generate_samples(parameters, nr_samples)
 
         nr_designs = next(iter(sampled_parameters.values())).shape[0]
@@ -131,11 +132,10 @@ class SobolSampler(SALibSampler):
         self.second_order = second_order
         self._warning = False
 
-        super(SobolSampler, self).__init__()
+        super().__init__()
 
     def sample(self, problem, size):
-        return saltelli.sample(problem, size,
-                               calc_second_order=self.second_order)
+        return sobol.sample(problem, size, calc_second_order=self.second_order)
 
 
 class MorrisSampler(SALibSampler):
@@ -155,17 +155,16 @@ class MorrisSampler(SALibSampler):
         Stating this variable to be true causes the function to ignore gurobi.
     """
 
-    def __init__(self, num_levels=4, optimal_trajectories=None,
-                 local_optimization=True):
-        super(MorrisSampler, self).__init__()
+    def __init__(self, num_levels=4, optimal_trajectories=None, local_optimization=True):
+        super().__init__()
         self.num_levels = num_levels
         self.optimal_trajectories = optimal_trajectories
         self.local_optimization = local_optimization
 
     def sample(self, problem, size):
-        return morris.sample(problem, size, self.num_levels,
-                             self.optimal_trajectories,
-                             self.local_optimization)
+        return morris.sample(
+            problem, size, self.num_levels, self.optimal_trajectories, self.local_optimization
+        )
 
 
 class FASTSampler(SALibSampler):
@@ -180,7 +179,7 @@ class FASTSampler(SALibSampler):
     """
 
     def __init__(self, m=4):
-        super(FASTSampler, self).__init__()
+        super().__init__()
         self.m = m
 
     def sample(self, problem, size):

@@ -1,9 +1,10 @@
 """
 
 This module provides a base class that can be used to perform EMA on
-Excel models. It relies on `win32com <http://python.net/crew/mhammond/win32/Downloads.html>`_
+Excel models. It relies on `win32com <https://python.net/crew/mhammond/win32/Downloads.html>`_
 
 """
+
 import os
 
 try:
@@ -23,6 +24,7 @@ from ..util.ema_logging import method_logger, get_module_logger
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 
 
+__all__ = ["ExcelModel"]
 _logger = get_module_logger(__name__)
 
 
@@ -36,7 +38,7 @@ class BaseExcelModel(FileModel):
     Base class for connecting the EMA workbench to models in Excel. To
     automate this connection as much as possible. This implementation relies
     on naming cells in Excel. These names can then be used here as names
-    for the uncertainties and the outcomes. See e.g. `this site <http://spreadsheets.about.com/od/exceltips/qt/named_range.htm>`_
+    for the uncertainties and the outcomes. See e.g. `this site <https://spreadsheets.about.com/od/exceltips/qt/named_range.htm>`_
     for details on naming cells and sets of cells.
 
     The provided implementation here does work with :mod:`parallel_ema`.
@@ -62,17 +64,16 @@ class BaseExcelModel(FileModel):
                model neat with legible names, while not demanding that workbook
                cells be named.  Each (key, value) pair in pointers maps a key that
                gives the (concise) name of an input or output for the model to an
-               identfier for that input or output in the Excel workbook, in
+               identifier for that input or output in the Excel workbook, in
                'sheetName!A1' or 'sheetName!NamedCell' notation (the sheet name
                is optional if the cell or range exists in the default sheet).
 
     """
+
     com_warning_msg = "com error: no cell(s) named %s found"
 
-    def __init__(self, name, wd=None, model_file=None, default_sheet=None,
-                 pointers=None):
-        super(BaseExcelModel, self).__init__(name, wd=wd,
-                                             model_file=model_file)
+    def __init__(self, name, wd=None, model_file=None, default_sheet=None, pointers=None):
+        super().__init__(name, wd=wd, model_file=model_file)
         #: Reference to the Excel application. This attribute is `None` until
         #: model_init has been invoked.
         self.xl = None
@@ -110,13 +111,13 @@ class BaseExcelModel(FileModel):
                  arguments.
 
         """
-        super(BaseExcelModel, self).model_init(policy)
+        super().model_init(policy)
 
         if not self.xl:
             try:
                 _logger.debug("trying to start Excel")
                 if win32com is None:
-                    raise ImportError('win32com')
+                    raise ImportError("win32com")
                 self.xl = win32com.client.Dispatch("Excel.Application")
                 _logger.debug("Excel started")
             except com_error as e:
@@ -136,7 +137,7 @@ class BaseExcelModel(FileModel):
         """
         Method for running an instantiated model structures. This
         implementation assumes that the names of the uncertainties correspond
-        to the name of the cells in Excel. See e.g. `this site <http://spreadsheets.about.com/od/exceltips/qt/named_range.htm>`_
+        to the name of the cells in Excel. See e.g. `this site <https://spreadsheets.about.com/od/exceltips/qt/named_range.htm>`_
         for details or use Google and search on 'named range'. One of the
         requirements on the names is that they cannot contains spaces.
 
@@ -158,7 +159,7 @@ class BaseExcelModel(FileModel):
         for key, value in experiment.items():
             self.set_wb_value(key, value)
 
-        # trigger a calulate event, in the case that the workbook's automatic
+        # trigger a calculate event, in the case that the workbook's automatic
         # recalculation was suspended.
         self.xl.Calculate()
 
@@ -178,7 +179,7 @@ class BaseExcelModel(FileModel):
 
     @method_logger(__name__)
     def cleanup(self):
-        """ cleaning up prior to finishing performing experiments. This will
+        """cleaning up prior to finishing performing experiments. This will
         close the workbook and close Excel"""
 
         # TODO:: if we know the pid for the associated excel process
@@ -188,14 +189,14 @@ class BaseExcelModel(FileModel):
             try:
                 self.wb.Close(False)
             except com_error as err:
-                _logger.warning("com error on wb.Close: {}".format(err), )
+                _logger.warning(f"com error on wb.Close: {err}")
             del self.wb
         if self.xl:
             try:
                 self.xl.DisplayAlerts = False
                 self.xl.Quit()
             except com_error as err:
-                _logger.warning("com error on xl.Quit: {}".format(err), )
+                _logger.warning(f"com error on xl.Quit: {err}")
             del self.xl
 
         self.xl = None
@@ -223,12 +224,8 @@ class BaseExcelModel(FileModel):
         try:
             sheet = self.wb.Sheets(sheetname)
         except Exception:
-            _logger.warning(
-                "com error: sheet '{}' not found".format(sheetname))
-            _logger.warning(
-                "known sheets: {}".format(
-                    ", ".join(
-                        self.get_wb_sheetnames())))
+            _logger.warning(f"com error: sheet '{sheetname}' not found")
+            _logger.warning(f"known sheets: {', '.join(self.get_wb_sheetnames())}")
             self.cleanup()
             raise
 
@@ -261,16 +258,12 @@ class BaseExcelModel(FileModel):
         try:
             sheet = self.get_sheet(this_sheet)
         except NoDefaultSheetError:
-            raise EMAError(
-                "no default sheet while trying to read from '{}'".format(name))
+            raise EMAError(f"no default sheet while trying to read from '{name}'")
 
         try:
             value = sheet.Range(this_range).Value
         except com_error:
-            _logger.warning(
-                "com error: no cell(s) named {} found on sheet {}".format(
-                    this_range, this_sheet),
-            )
+            _logger.warning(f"com error: no cell(s) named {this_range} found on sheet {this_sheet}")
             value = None
 
         return value
@@ -302,16 +295,12 @@ class BaseExcelModel(FileModel):
         try:
             sheet = self.get_sheet(this_sheet)
         except NoDefaultSheetError:
-            raise EMAError(
-                "no default sheet while trying to write to '{}'".format(name))
+            raise EMAError(f"no default sheet while trying to write to '{name}'")
 
         try:
             sheet.Range(this_range).Value = value
         except com_error:
-            _logger.warning(
-                "com error: no cell(s) named {} found on sheet {}".format(
-                    this_range, this_sheet),
-            )
+            _logger.warning(f"com error: no cell(s) named {this_range} found on sheet {this_sheet}")
 
     def get_wb_sheetnames(self):
         """get the names of all the workbook's worksheets"""
@@ -319,9 +308,9 @@ class BaseExcelModel(FileModel):
             try:
                 return [sh.Name for sh in self.wb.Sheets]
             except com_error as err:
-                return ['com_error: {}'.format(err)]
+                return [f"com_error: {err}"]
         else:
-            return ['error: wb not available']
+            return ["error: wb not available"]
 
 
 class ExcelModel(SingleReplication, BaseExcelModel):

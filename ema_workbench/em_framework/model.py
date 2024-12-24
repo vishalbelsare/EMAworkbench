@@ -4,24 +4,32 @@ Any model that is to be controlled from the workbench is controlled via
 an instance of an extension of this abstract base class.
 
 """
+
 import operator
 import os
 import warnings
 from collections import defaultdict
 
+from .points import ExperimentReplication
 from .outcomes import AbstractOutcome
-from .parameters import Parameter, Constant, CategoricalParameter, Experiment
-from .util import (NamedObject, combine, NamedObjectMapDescriptor)
-from ..util import EMAError, get_module_logger
-from ..util.ema_logging import method_logger
+from .parameters import Parameter, Constant, CategoricalParameter
+from .util import NamedObject, combine, NamedObjectMapDescriptor
+from ..util import EMAError
+from ..util.ema_logging import method_logger, get_module_logger
 
 # Created on 23 dec. 2010
 #
 # .. codeauthor:: jhkwakkel <j.h.kwakkel (at) tudelft (dot) nl>
 #
 
-__all__ = ['AbstractModel', 'Model', 'FileModel', 'Replicator',
-           'SingleReplication', 'ReplicatorModel']
+__all__ = [
+    "AbstractModel",
+    "Model",
+    "FileModel",
+    "Replicator",
+    "SingleReplication",
+    "ReplicatorModel",
+]
 _logger = get_module_logger(__name__)
 
 
@@ -33,11 +41,11 @@ class AbstractModel(NamedObject):
 
     Attributes
     ----------
-    uncertainties : listlike
-                    list of parameter
-    levers : listlike
+    uncertainties : list
+                    list of parameter instances
+    levers : list
              list of parameter instances
-    outcomes : listlike
+    outcomes : list
                list of outcome instances
     name : str
            alphanumerical name of model structure interface
@@ -63,8 +71,7 @@ class AbstractModel(NamedObject):
     @property
     def output_variables(self):
         if self._output_variables is None:
-            self._output_variables = [var for o in self.outcomes for var in
-                                      o.variable_name]
+            self._output_variables = [var for o in self.outcomes for var in o.variable_name]
 
         return self._output_variables
 
@@ -87,15 +94,17 @@ class AbstractModel(NamedObject):
         EMAError if name contains non alpha-numerical characters
 
         """
-        super(AbstractModel, self).__init__(name)
+        super().__init__(name)
 
         if not self.name.isalnum():
-            raise EMAError(("name of model should only contain "
-                            "alpha numerical characters"))
+            raise EMAError(
+                f"Name of model ({self.name}) should only contain alpha numerical characters"
+            )
 
         self._output_variables = None
         self._outcomes_output = {}
         self._constraints_output = {}
+        self.policy = None
 
     @method_logger(__name__)
     def model_init(self, policy):
@@ -126,7 +135,6 @@ class AbstractModel(NamedObject):
 
     @method_logger(__name__)
     def _transform(self, sampled_parameters, parameters):
-
         if not parameters:
             # no parameters defined, so nothing to transform, mainly
             # useful for manual specification of scenario /  policy
@@ -142,7 +150,7 @@ class AbstractModel(NamedObject):
                 if par.default is not None:
                     value = par.default
                 else:
-                    _logger.debug('{} not found'.format(par.name))
+                    _logger.debug(f"parameter {par.name} not found in sampled_parameters")
                     continue
 
             multivalue = False
@@ -196,17 +204,22 @@ class AbstractModel(NamedObject):
     @method_logger(__name__)
     def retrieve_output(self):
         """Method for retrieving output after a model run.
+        Deprecated, will be removed in version 3.0 of the EMAworkbench.
 
         Returns
         -------
         dict with the results of a model run.
         """
-        warnings.warn('deprecated, use model.output instead')
+        warnings.warn(
+            "The 'retrieve_output' method is deprecated and will be removed in version 3.0 of the EMAworkbench."
+            "Use 'model.output' instead.",
+            DeprecationWarning,
+        )
         return self.output
 
     @method_logger(__name__)
     def reset_model(self):
-        """ Method for reseting the model to its initial state. The default
+        """Method for resetting the model to its initial state. The default
         implementation only sets the outputs to an empty dict.
 
         """
@@ -231,41 +244,42 @@ class AbstractModel(NamedObject):
         """returns a dict representation of the model"""
 
         def join_attr(field):
-            joined = ', '.join([repr(entry) for entry in sorted(
-                field, key=operator.attrgetter('name'))])
-            return '[{}]'.format(joined)
+            joined = ", ".join(
+                [repr(entry) for entry in sorted(field, key=operator.attrgetter("name"))]
+            )
+            return f"[{joined}]"
 
         model_spec = {}
 
         klass = self.__class__.__name__
         name = self.name
 
-        uncs = ''
+        uncs = ""
         for uncertainty in self.uncertainties:
-            uncs += '\n' + repr(uncertainty)
+            uncs += "\n" + repr(uncertainty)
 
-        model_spec['class'] = klass
-        model_spec['name'] = name
-        model_spec['uncertainties'] = join_attr(self.uncertainties)
-        model_spec['outcomes'] = join_attr(self.outcomes)
-        model_spec['constants'] = join_attr(self.constants)
+        model_spec["class"] = klass
+        model_spec["name"] = name
+        model_spec["uncertainties"] = join_attr(self.uncertainties)
+        model_spec["outcomes"] = join_attr(self.outcomes)
+        model_spec["constants"] = join_attr(self.constants)
 
         return model_spec
 
 
 class MyDict(dict):
+    # bit of a dirty hack to be able to assign attributes to a dict
+    # in a replication context
     pass
 
 
 class Replicator(AbstractModel):
-
     @property
     def replications(self):
         return self._replications
 
     @replications.setter
     def replications(self, replications):
-
         # int
         if isinstance(replications, int):
             # TODO:: use a repeating generator instead
@@ -278,13 +292,11 @@ class Replicator(AbstractModel):
             self._replications = [MyDict(**entry) for entry in replications]
             self.nreplications = len(replications)
         else:
-            raise TypeError(
-                "replications should be int or list not {}".format(
-                    type(replications)))
+            raise TypeError(f"Replications should be int or list, not {type(replications)}")
 
     @method_logger(__name__)
     def run_model(self, scenario, policy):
-        """ Method for running an instantiated model structure.
+        """Method for running an instantiated model structure.
 
         Parameters
         ----------
@@ -292,16 +304,16 @@ class Replicator(AbstractModel):
         policy : Policy instance
 
         """
-        super(Replicator, self).run_model(scenario, policy)
+        super().run_model(scenario, policy)
 
         constants = {c.name: c.value for c in self.constants}
         outputs = defaultdict(list)
         partial_experiment = combine(scenario, self.policy, constants)
 
         for i, rep in enumerate(self.replications):
-            _logger.debug("replication {}".format(i))
+            _logger.debug(f"replication {i} of {self.nreplications}")
             rep.id = i
-            experiment = Experiment(scenario, self.policy, constants, rep)
+            experiment = ExperimentReplication(scenario, self.policy, constants, rep)
             output = self.run_experiment(experiment)
             for key, value in output.items():
                 outputs[key].append(value)
@@ -311,12 +323,10 @@ class Replicator(AbstractModel):
         # perhaps set constraints with the outcomes instead
         # this avoids double processing, it also means that
         # each constraint needs to apply to an actual outcome
-        self.constraints_output = (partial_experiment,
-                                   self.outcomes_output)
+        self.constraints_output = (partial_experiment, self.outcomes_output)
 
 
 class SingleReplication(AbstractModel):
-
     @method_logger(__name__)
     def run_model(self, scenario, policy):
         """
@@ -328,11 +338,11 @@ class SingleReplication(AbstractModel):
         policy : Policy instance
 
         """
-        super(SingleReplication, self).run_model(scenario, policy)
+        super().run_model(scenario, policy)
 
         constants = {c.name: c.value for c in self.constants}
 
-        experiment = Experiment(scenario, self.policy, constants)
+        experiment = ExperimentReplication(scenario, self.policy, constants)
 
         outputs = self.run_experiment(experiment)
 
@@ -341,7 +351,7 @@ class SingleReplication(AbstractModel):
 
 
 class BaseModel(AbstractModel):
-    """ generic class for working with models implemented as a Python
+    """generic class for working with models implemented as a Python
     callable
 
     Parameters
@@ -371,16 +381,16 @@ class BaseModel(AbstractModel):
     """
 
     def __init__(self, name, function=None):
-        super(BaseModel, self).__init__(name)
+        super().__init__(name)
 
         if not callable(function):
-            raise ValueError('function should be callable')
+            raise ValueError("Function should be callable")
 
         self.function = function
 
     @method_logger(__name__)
     def run_experiment(self, experiment):
-        """ Method for running an instantiated model structure.
+        """Method for running an instantiated model structure.
 
         Parameters
         ----------
@@ -398,7 +408,7 @@ class BaseModel(AbstractModel):
             try:
                 value = model_output[variable]
             except KeyError:
-                _logger.warning(variable + ' not found in model output')
+                _logger.warning(f"variable {variable} not found in model output")
                 value = None
             except TypeError:
                 value = model_output[i]
@@ -406,8 +416,8 @@ class BaseModel(AbstractModel):
         return results
 
     def as_dict(self):
-        model_specs = super(BaseModel, self).as_dict()
-        model_specs['function'] = self.function
+        model_specs = super().as_dict()
+        model_specs["function"] = self.function
         return model_specs
 
 
@@ -421,7 +431,7 @@ class WorkingDirectoryModel(AbstractModel):
     @working_directory.setter
     def working_directory(self, path):
         wd = os.path.abspath(path)
-        _logger.debug('setting working directory to ' + wd)
+        _logger.debug(f"setting working directory to {wd}")
         self._working_directory = wd
 
     def __init__(self, name, wd=None):
@@ -440,21 +450,19 @@ class WorkingDirectoryModel(AbstractModel):
         ValueError
             if working_directory does not exist
         """
-        super(WorkingDirectoryModel, self).__init__(name)
+        super().__init__(name)
         self.working_directory = wd
 
         if not os.path.exists(self.working_directory):
-            raise ValueError("{} does not exist".format(
-                self.working_directory))
+            raise ValueError(f"Working directory {self.working_directory} does not exist")
 
     def as_dict(self):
-        model_specs = super(WorkingDirectoryModel, self).as_dict()
-        model_specs['working_directory'] = self.working_directory
+        model_specs = super().as_dict()
+        model_specs["working_directory"] = self.working_directory
         return model_specs
 
 
 class FileModel(WorkingDirectoryModel):
-
     @property
     def working_directory(self):
         return self._working_directory
@@ -462,7 +470,7 @@ class FileModel(WorkingDirectoryModel):
     @working_directory.setter
     def working_directory(self, path):
         wd = os.path.abspath(path)
-        _logger.debug('setting working directory to ' + wd)
+        _logger.debug(f"setting working directory to {wd}")
         self._working_directory = wd
 
     def __init__(self, name, wd=None, model_file=None):
@@ -484,19 +492,35 @@ class FileModel(WorkingDirectoryModel):
             if name contains non alpha-numerical characters
         ValueError
             if model_file cannot be found
+            if the current working directory is the same as the working
+            directory of the model
+
+
+        The parallelization code offered by the workbench implicitly assumes
+        that the current working directory (i.e., os.getwcd()) is different
+        from the directory in which the model resides.
+
+        It is best practice to place the model files in a subdirectory of
+        the folder within which the file resides used for performing
+        experiments
 
         """
-        super(FileModel, self).__init__(name, wd=wd)
+        super().__init__(name, wd=wd)
 
         path_to_file = os.path.join(self.working_directory, model_file)
         if not os.path.isfile(path_to_file):
-            raise ValueError('cannot find model file')
+            raise ValueError(f"Cannot find model file: {model_file},\nPath to file: {path_to_file}")
+
+        if os.getcwd() == self.working_directory:
+            raise ValueError(
+                f"The working directory of the model cannot be the same as the current working directory\nBoth are: {self.working_directory}"
+            )
 
         self.model_file = model_file
 
     def as_dict(self):
-        model_specs = super(FileModel, self).as_dict()
-        model_specs['model_file'] = self.model_file
+        model_specs = super().as_dict()
+        model_specs["model_file"] = self.model_file
         return model_specs
 
 

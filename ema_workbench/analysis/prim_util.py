@@ -8,7 +8,7 @@ from enum import Enum
 import numpy as np
 
 from . import scenario_discovery_util as sdutil
-from ..util.ema_logging import (get_module_logger)
+from ..util.ema_logging import get_module_logger
 
 _logger = get_module_logger(__name__)
 
@@ -20,13 +20,25 @@ _logger = get_module_logger(__name__)
 
 class PrimException(Exception):
     """Base exception class for prim related exceptions"""
+
     pass
 
 
 class PRIMObjectiveFunctions(Enum):
-    LENIENT2 = 'lenient2'
-    LENIENT1 = 'lenient1'
-    ORIGINAL = 'original'
+    LENIENT2 = "lenient2"
+    LENIENT1 = "lenient1"
+    ORIGINAL = "original"
+
+
+class DiagKind(Enum):
+    KDE = "kde"
+    """constant for plotting diagonal in pairs_scatter as kde"""
+
+    CDF = "cdf"
+    """constant for plotting diagonal in pairs_scatter as cdf"""
+
+    def __contains__(cls, item):
+        return item in cls.__members__.values()
 
 
 def get_quantile(data, quantile):
@@ -59,15 +71,14 @@ def get_quantile(data, quantile):
         value = (data[index_lower] + data[index_higher]) / 2
     else:
         # lower
-        while (data[index_lower] == data[index_higher]) & \
-                (index_higher < len(data) - 1):
+        while (data[index_lower] == data[index_higher]) & (index_higher < len(data) - 1):
             index_higher += 1
         value = (data[index_lower] + data[index_higher]) / 2
 
     return value
 
 
-class CurEntry(object):
+class CurEntry:
     """a descriptor for the current entry on the peeling and pasting
     trajectory"""
 
@@ -93,21 +104,18 @@ def calculate_qp(data, x, y, Hbox, Tbox, box_lim, initial_boxlim):
 
     if np.issubdtype(dtype, np.number):
         qp_values = []
-        for direction, (limit, unlimit) in enumerate(zip(data,
-                                                         unlimited)):
+        for direction, (limit, unlimit) in enumerate(zip(data, unlimited)):
             if unlimit != limit:
                 temp_box = box_lim.copy()
                 temp_box.at[direction, u] = unlimit
-                qp = sdutil._calculate_quasip(x, y, temp_box,
-                                              Hbox, Tbox)
+                qp = sdutil._calculate_quasip(x, y, temp_box, Hbox, Tbox)
             else:
                 qp = -1
             qp_values.append(qp)
     else:
         temp_box = box_lim.copy()
         temp_box.loc[:, u] = unlimited
-        qp = sdutil._calculate_quasip(x, y, temp_box,
-                                      Hbox, Tbox)
+        qp = sdutil._calculate_quasip(x, y, temp_box, Hbox, Tbox)
         qp_values = [qp, -1]
 
     return qp_values
@@ -132,7 +140,7 @@ def rotate_subset(experiments, y):
     """
     mean = np.mean(experiments, axis=0)
     std = np.std(experiments, axis=0)
-    std[std == 0] = 1  # in order to avoid a devision by zero
+    std[std == 0] = 1  # in order to avoid a division by zero
     experiments = (experiments - mean) / std
 
     # normalize the data
@@ -171,14 +179,12 @@ def determine_rotation(experiments):
 
     # make the eigen vectors unit length
     for i in range(eigen_vectors.shape[1]):
-        eigen_vectors[:, i] / \
-        np.linalg.norm(eigen_vectors[:, i]) * np.sqrt(eigen_vals[i])
+        eigen_vectors[:, i] / np.linalg.norm(eigen_vectors[:, i]) * np.sqrt(eigen_vals[i])
 
     return eigen_vectors
 
 
-def determine_dimres(box, issignificant=True,
-                     significance_threshold=0.1):
+def determine_dimres(box, issignificant=True, significance_threshold=0.1):
     def is_significant(v):
         for entry in v:
             if (entry >= 0) & (entry <= significance_threshold):
@@ -210,7 +216,7 @@ def box_to_tuple(box):
     return tupled_box
 
 
-class NotSeen(object):
+class NotSeen:
     def __init__(self):
         self.seen = set()
 
@@ -225,8 +231,7 @@ class NotSeen(object):
 
 def is_significant(box, i, alpha=0.05):
     qp = box.qp[i]
-    return not any([value > alpha for values in qp.values()
-                    for value in values])
+    return not any(value > alpha for values in qp.values() for value in values)
 
 
 def is_pareto_efficient(data):
@@ -237,14 +242,12 @@ def is_pareto_efficient(data):
 def calc_fronts(M):
     # taken from
     # https://stackoverflow.com/questions/41740596/pareto-frontier-indices-using-numpy
-    i_dominates_j = np.all(M[:, None] >= M, axis=-
-    1) & np.any(M[:, None] > M, axis=-1)
+    i_dominates_j = np.all(M[:, None] >= M, axis=-1) & np.any(M[:, None] > M, axis=-1)
     remaining = np.arange(len(M))
     fronts = np.empty(len(M), int)
     frontier_index = 0
     while remaining.size > 0:
-        dominated = np.any(
-            i_dominates_j[remaining[:, None], remaining], axis=0)
+        dominated = np.any(i_dominates_j[remaining[:, None], remaining], axis=0)
         fronts[remaining[~dominated]] = frontier_index
 
         remaining = remaining[dominated]
